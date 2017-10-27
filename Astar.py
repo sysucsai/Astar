@@ -101,7 +101,7 @@ class Astar:
 			self.dis_map[i] = tuple(self.dis_map[i])
 		self.dis_map = tuple(self.dis_map)
 
-	def next(self):
+	def update(self):
 		'''执行一次迭代，返回新增的点和边'''
 		self.close_count += 1
 		now = self.open.pop(0)
