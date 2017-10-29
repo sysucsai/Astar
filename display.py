@@ -189,9 +189,9 @@ class ApplicationWindow(QWidget):
         self.on = 0
         self.text_h1.setText("")
         self.text_h2.setText("")
-        indexi = 0
-        indexj = 0
-        tempList = [i for i in range(9)]
+        indexi = 1
+        indexj = 1
+        tempList = [1,2,3,8,0,4,7,6,5]
         for k in range(5):
             go = [1,2,3,4]
             if indexi == 0:

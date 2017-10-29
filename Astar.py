@@ -115,8 +115,8 @@ class Astar:
 	def if_possible(self, initial, goal):
 		tmp_sum_a = 0
 		tmp_sum_b = 0
-		tmp_a = initial
-		tmp_b = goal
+		tmp_a = initial[:]
+		tmp_b = goal[:]
 		tmp_fail = False
 		for i in range(8):
 			for j in range(i+1,8):
