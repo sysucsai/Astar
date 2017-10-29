@@ -69,12 +69,14 @@ class ApplicationWindow(QWidget):
     def __init__(self):
         QMainWindow.__init__(self)
         self.on = 0     # 看似是说明是否开始了，实际是用来保存当前步数 :)
-        self.LayoutInit()   # 调用布局设置
+        self.start_by_step = 0  # 单步执行启动
+        self.step_over = 0 # 单步完成
         self.initList = [1,2,3,8,0,4,7,6,5] # 初始状态表
         self.goal = [1,2,3,8,0,4,7,6,5]     # 目标状态表
         #1 2 3
         #8 0 4
         #7 6 5
+        self.LayoutInit()   # 调用布局设置
         self.Astar_h1 = Astar.Astar(self.initList, self.goal, 1)    # 生成h1的Astart类
         self.Astar_h2 = Astar.Astar(self.initList, self.goal, 2)    # 生成h2的Astart类
         self.G1 = nx.Graph()    #   创建h1的图
@@ -82,8 +84,8 @@ class ApplicationWindow(QWidget):
                                                             #list_2_grid是一个将列表转换成矩阵自负串的函数
         self.G1.add_node(self.list_2_grid(self.initList))  # 将初始状态列表换成结点放入图中
         self.G2.add_node(self.list_2_grid(self.initList))  # 同上
-        self.show_h1()      # 文字初始化
-        self.show_h2()      # 文字初始化
+        self.show_h1(self.Astar_h1.initial)      # 文字初始化
+        self.show_h2(self.Astar_h2.initial)      # 文字初始化
 
         #   计时器，一段时间执行一步循环
         timer = QtCore.QTimer(self)
@@ -95,14 +97,14 @@ class ApplicationWindow(QWidget):
         # h1的标题、画布、标签、步骤
         self.label_h1 = QLabel("h1:",self)
         self.canvas_h1 = MyCanvas(1, self)
-        self.attrib_h1 = QLabel(" 结点\t  步数\t  总拓展数  OPEN表结点数\th(n)\t  f(n)",self)
+        self.attrib_h1 = QLabel("%s%10s%10s%10s%10s%10s\n"%("node","step","expanded","OPEN","h(n)","f(n)"))
         self.text_h1 = QTextEdit(self)
         self.text_h1.setReadOnly(True)
 
         # h2的标题、画布、标签、步骤
         self.label_h2 = QLabel("h2:",self)
         self.canvas_h2 = MyCanvas(2, self)
-        self.attrib_h2 = QLabel(" 结点\t  步数\t  总拓展数  OPEN表结点数\th(n)\t  f(n)\t",self)
+        self.attrib_h2 = QLabel("%s%10s%10s%10s%10s%10s\n"%("node","step","expanded","OPEN","h(n)","f(n)"))
         self.text_h2 = QTextEdit(self)
         self.text_h2.setReadOnly(True)
 
@@ -116,12 +118,19 @@ class ApplicationWindow(QWidget):
             for i in range(3):
                 self.gridEntry[j][i].setAutoFillBackground(True)
                 self.gridEntry[j][i].setPalette(pe)
-                self.gridEntry[j][i].setText(str(j*3 + i))
+                self.gridEntry[j][i].setText(str(self.initList[j*3 + i]))
                 self.gridEntry[j][i].setFixedWidth(40)
                 self.gridEntry[j][i].setFixedHeight(40)
                 self.gridEntry[j][i].setFont(QFont("Roman times",20,QFont.Bold))# 字体、大小、加粗
                 self.gridRow[j].addWidget(self.gridEntry[j][i])
             self.grid.addLayout(self.gridRow[j])
+
+        # 选择随机打乱步长
+        self.randomLabel = QLabel("输入打乱步长：")
+        self.randomText = QLineEdit("10")
+        self.randomChoose = QHBoxLayout()
+        self.randomChoose.addWidget(self.randomLabel)
+        self.randomChoose.addWidget(self.randomText)
 
         # 随机生成按钮
         self.randomButton = QPushButton("随机生成")
@@ -130,6 +139,10 @@ class ApplicationWindow(QWidget):
         # 开始按钮
         self.startButton = QPushButton("开始")
         self.startButton.clicked.connect(self.start)
+
+        # 单步执行按钮
+        self.OneStepButton = QPushButton("单步执行")
+        self.OneStepButton.clicked.connect(self.startOneStep)
 
         # 右下结果显示表
         self.resultEntry =[[QLabel(self) for i in range(3)] for j in range(4)]
@@ -148,6 +161,8 @@ class ApplicationWindow(QWidget):
         self.resultEntry[1][0].setText("步数")
         self.resultEntry[2][0].setText("节点数")
         self.resultEntry[3][0].setText("f*（S0）")
+        self.resultEntry[3][1].setText("x")
+        self.resultEntry[3][2].setText("x")
 
         # 加入框架###################################################################
         # 第一大列
@@ -169,8 +184,10 @@ class ApplicationWindow(QWidget):
         self.column3.addStretch(1)
         self.column3.addLayout(self.grid)
         self.column3.addStretch(1)
+        self.column3.addLayout(self.randomChoose)
         self.column3.addWidget(self.randomButton)
         self.column3.addWidget(self.startButton)
+        self.column3.addWidget(self.OneStepButton)
         self.column3.addStretch(1)
         self.column3.addLayout(self.resultTable)
         self.column3.addStretch(1)
@@ -187,26 +204,36 @@ class ApplicationWindow(QWidget):
     # 随机生成按钮事件
     def randomGenerate(self):
         self.on = 0
+        self.start_by_step = 0
         self.text_h1.setText("")
         self.text_h2.setText("")
+        self.resultEntry[3][1].setText("x")
+        self.resultEntry[3][2].setText("x")
+
+
+        tempList = self.goal[:]
+        # tempList中“0”的位置
         indexi = 1
         indexj = 1
-        tempList = self.goal[:]
+        # 上一次走的方向
+        k = 0
 
         # 五次乱步
-        for k in range(5):
+        for n in range(int(self.randomText.text())):
             # 方向数组
-            go = [1,2,3,4]
+            go = [1,-1,2,-2]
 
             # 根据位置去除可以行走的方向
             if indexi == 0:
                 go.remove(1)
             if indexi == 2:
-                go.remove(2)
+                go.remove(-1)
             if indexj == 0:
-                go.remove(3)
+                go.remove(2)
             if indexj == 2:
-                go.remove(4)
+                go.remove(-2)
+            if n!=0:
+                go.remove(-k)
 
             # 随机选取方向
             k = random.sample(go,1)[0]
@@ -219,14 +246,14 @@ class ApplicationWindow(QWidget):
                 temp = tempList[old_index]
                 tempList[old_index] = tempList[new_index]
                 tempList[new_index] = temp
-            elif k == 2:
+            elif k == -1:
                 old_index = indexi * 3 + indexj
                 indexi += 1
                 new_index = indexi * 3 + indexj
                 temp = tempList[old_index]
                 tempList[old_index] = tempList[new_index]
                 tempList[new_index] = temp
-            elif k == 3:
+            elif k == 2:
                 old_index = indexi * 3 + indexj
                 indexj -= 1
                 new_index = indexi * 3 + indexj
@@ -252,12 +279,23 @@ class ApplicationWindow(QWidget):
         self.G2 = nx.Graph()
         self.G1.add_node(self.list_2_grid(self.initList))  # 从v中添加结点，相当于顶点编号为1到8
         self.G2.add_node(self.list_2_grid(self.initList))  # 从v中添加结点，相当于顶点编号为1到8
-        self.show_h1()
-        self.show_h2()
+        self.show_h1(self.Astar_h1.initial)
+        self.show_h2(self.Astar_h2.initial)
 
     # 开始按钮事件
     def start(self):
-        self.on = 1
+        if self.on ==0:
+            self.on = 1
+        self.start_by_step = -1
+
+    def startOneStep(self):
+        if self.start_by_step == -1:
+            return
+        if self.on == 0:
+            self.on = 1
+        self.start_by_step = 1
+        self.step_over = 1
+        self.update()
 
     # 总更新步骤，调用h1、h2更新步骤
     def update(self):
@@ -265,45 +303,49 @@ class ApplicationWindow(QWidget):
         if self.on == 0:
             return
 
+        if self.start_by_step == 1 and self.step_over == 0:
+            return
+
         # 调用两个各自的刷新
         if(self.Astar_h1.fail != True and self.Astar_h1.success!= True):
-            self.update_h1()
-            self.show_h1()
+            self.show_h1(self.update_h1())
+            if (self.Astar_h1.fail == True):
+                self.text_h1.append("This puzzle is unsolvable!")
+            if (self.Astar_h1.success == True):
+                self.text_h1.append("Success!")
+                path,n = self.Astar_h1.get_best_path()
+                for i in path:
+                    nodestr = self.list_2_grid(i)
+                    self.text_h1.append(nodestr + "\n")
+                self.text_h1.append("最短路径长："+str(n))
+                self.resultEntry[3][1].setText(str(n))
         if(self.Astar_h2.fail != True and self.Astar_h2.success!= True):
-            self.update_h2()
-            self.show_h2()
+            self.show_h2(self.update_h2())
+            if (self.Astar_h2.fail == True):
+                self.text_h2.append("This puzzle is unsolvable!")
+            if (self.Astar_h2.success == True):
+                self.text_h2.append("Success!")
+                path,n = self.Astar_h2.get_best_path()
+                for i in path:
+                    nodestr = self.list_2_grid(i)
+                    self.text_h2.append(nodestr + "\n")
+                self.text_h2.append("最短路径长："+str(n))
+                self.resultEntry[3][2].setText(str(n))
 
-        # 终止结果输出
-        if (self.Astar_h1.fail == True):
-            self.text_h1.append("This puzzle is unsolvable!")
-        if (self.Astar_h2.fail == True):
-            self.text_h2.append("This puzzle is unsolvable!")
-        if (self.Astar_h1.success == True):
-            self.text_h1.append("Success!")
-            path,n = self.Astar_h1.get_best_path()
-            for i in path:
-                nodestr = self.list_2_grid(i)
-                self.text_h1.append(nodestr + "\n")
-            self.text_h1.append("最短路径长："+str(n))
-        if (self.Astar_h2.success == True):
-            self.text_h2.append("Success!")
-            path,n = self.Astar_h2.get_best_path()
-            for i in path:
-                nodestr = self.list_2_grid(i)
-                self.text_h2.append(nodestr + "\n")
-            self.text_h2.append("最短路径长："+str(n))
 
         # 终止停止
         if((self.Astar_h1.fail == True or self.Astar_h1.success == True) and (self.Astar_h2.fail == True or self.Astar_h2.success== True)):
             self.on = 0
+            self.start_by_step = 0
         else:
             # 否则步数加一
             self.on+=1
+            self.step_over = 0
 
     # h1更新步骤
     def update_h1(self):
         # 调用类的刷新函数，返回新增结点列表和边列表
-        add_nodes, add_edges = self.Astar_h1.update()
+        add_nodes, add_edges, now= self.Astar_h1.update()
 
         # 加入新点
         for i in add_nodes:
@@ -317,40 +359,37 @@ class ApplicationWindow(QWidget):
         # 更新画布
         self.canvas_h1.update_figure(self.G1,self.list_2_grid(self.initList))
 
+        return now
+
     # h2更新步骤
     def update_h2(self):
         # 同h1
-        add_nodes, add_edges = self.Astar_h2.update()
+        add_nodes, add_edges, now= self.Astar_h2.update()
         for i in add_nodes:
             tmp_list = self.cantor_decode(i)
             self.G2.add_node(self.list_2_grid(tmp_list))
         for (i, j) in add_edges:
             self.G2.add_edge(self.list_2_grid(self.cantor_decode(i)), self.list_2_grid(self.cantor_decode(j)))
         self.canvas_h2.update_figure(self.G2,self.list_2_grid(self.initList))
+        return now
 
     #   显示h1的文字信息
-    def show_h1(self):
+    def show_h1(self, now):
         self.canvas_h1.update_figure(self.G1,self.list_2_grid(self.initList))
-        index = self.Astar_h1.open[0]
-        for i in self.Astar_h1.open:
-            if i.f < index.f:
-                index = i
+        index = now
         nodestr = self.list_2_grid(self.cantor_decode(index.cantor))
-        expandstr = str(self.Astar_h1.close_count + len(self.Astar_h1.open))
-        self.text_h1.append(nodestr + "\t" + str(self.on) + "\t" + expandstr+ "\t" + str(len(self.Astar_h1.open)) + "\t" + str(index.h) + "\t" + str(index.f) + "\n")
+        expandstr = str(self.Astar_h1.close_count + self.Astar_h1.get_open())
+        self.text_h1.append("%s%10s%10s%10s%10s%10s\n"%(nodestr,str(self.on),expandstr,str(self.Astar_h1.get_open()),str(index.h),str(index.f)))
         self.resultEntry[1][1].setText(str(self.on))
         self.resultEntry[2][1].setText(expandstr)
 
     #   显示h2的文字信息
-    def show_h2(self):
+    def show_h2(self, now):
         self.canvas_h2.update_figure(self.G2,self.list_2_grid(self.initList))
-        index = self.Astar_h2.open[0]
-        for i in self.Astar_h2.open:
-            if i.f < index.f:
-                index = i
+        index = now
         nodestr = self.list_2_grid(self.cantor_decode(index.cantor))
-        expandstr = str(self.Astar_h2.close_count + len(self.Astar_h2.open))
-        self.text_h2.append(nodestr + "\t" + str(self.on) + "\t" + expandstr + "\t" + str(len(self.Astar_h2.open)) + "\t" + str(index.h) + "\t" + str(index.f) + "\n")
+        expandstr = str(self.Astar_h2.close_count + self.Astar_h2.get_open())
+        self.text_h2.append("%s%10s%10s%10s%10s%10s\n"%(nodestr,str(self.on),expandstr,str(self.Astar_h2.get_open()),str(index.h),str(index.f)))
         self.resultEntry[1][2].setText(str(self.on))
         self.resultEntry[2][2].setText(expandstr)
 

@@ -38,14 +38,18 @@ class State:
 			del valid[p]
 		return graph
 
-	def relax(self, father):
+	def relax(self, father, open):
 		if self.father == father:
+			open[self.f].remove(self)
 			self.g = father.g+1
+			self.f = self.g + self.h
+			open[self.f].append(self)
 			for i in self.child:
 				i.relax(self)
 		else:
 			if self.father != self:
 				self.father.child.remove(self)
+				open[self.f].remove(self)
 			self.father = father
 			self.g = father.g + 1
 			self.f = self.g + self.h
@@ -86,7 +90,10 @@ class Astar:
 			self.dis_map_init(goal)
 
 		self.initial = State(initial, 0, h_mode, goal, self.dis_map)
-		self.open = [self.initial]
+		#self.open = [self.initial]
+		self.open_max = 50
+		self.open = [[] for i in range(self.open_max)]
+		self.open[self.initial.f].append(self.initial)
 		self.close = []
 		self.hash = tuple([flag() for i in range(fac[9])])
 		self.hash[self.initial.cantor].set_true(self.initial)
@@ -157,7 +164,11 @@ class Astar:
 	def update(self):
 		'''执行一次迭代，返回新增的点和边'''
 		self.close_count += 1
-		now = self.open.pop(0)
+		#now = self.open.pop(0)
+		for i in range(self.open_max):
+			if len(self.open[i]) > 0:
+				now = self.open[i].pop(0)
+				break
 		now_graph = now.get_graph()
 		for i in range(9):
 			if now_graph[i] == 0:
@@ -179,24 +190,25 @@ class Astar:
 					#如果要添加的点已经拓展过
 					pre = self.hash[new.cantor].pointer
 					if pre.g > new.g:
-						pre.relax(now)
+						pre.relax(now, self.open)
 						add_edges.append((now.cantor, new.cantor))
 				else:
 					#如果要添加的点未拓展过
 					self.hash[new.cantor].set_true(new)
-					new.relax(now)
+					new.relax(now, self.open)
 					add_nodes.append(new.cantor)
 					add_edges.append((now.cantor, new.cantor))
-					self.open.append(new)
+					#self.open.append(new)
+					self.open[new.f].append(new)
 				if new.cantor == self.goal_cantor:
 					self.success = True
-					return add_nodes, add_edges
+					return add_nodes, add_edges, now
 				now_graph[p + move[i]] = now_graph[p]
 				now_graph[p] = 0
 		#如果Open表为空则搜索结束，标记fail为True
 		if len(self.open) == 0:
 			self.fail = True
-		return add_nodes, add_edges
+		return add_nodes, add_edges, now
 
 	def get_best_path(self):
 		'''获取最优路径和长度
@@ -212,6 +224,9 @@ class Astar:
 		best_path.insert(0, now.get_graph())
 		return best_path, len(best_path)-1
 
+	def get_open(self):
+		return sum([len(self.open[i]) for i in range(self.open_max)])
+
 
 if __name__ == "__main__":
 	goal = [0,5,2,
@@ -220,9 +235,15 @@ if __name__ == "__main__":
 	initial = [3,6,8,
 			   0,1,2,
 			   4,5,7]
-	h1 = Astar(initial, goal, 1)
+	'''initial = [0,1,2,
+			   3,4,5,
+			   6,7,8]
+	goal = [4,3,2,
+			1,0,5,
+			6,7,8]'''
+	h1 = Astar(initial, goal, 2)
 	while h1.fail == False and h1.success == False:
-		add_nodes, add_edges = h1.next()
+		add_nodes, add_edges = h1.update()
 		#print(add_nodes)
 		#print(add_edges)
 	if h1.success == True:
