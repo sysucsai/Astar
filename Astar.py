@@ -74,7 +74,9 @@ class Astar:
 		参数3：估价函数，h_mode = 1 或 2'''
 		self.goal = goal
 		self.h_mode = h_mode
-		self.fail = False
+		self.fail = True
+		if self.if_possible(initial, goal):
+			self.fail = False
 		self.success = False
 		self.close_count = 0
 
@@ -89,6 +91,48 @@ class Astar:
 		self.hash = tuple([flag() for i in range(fac[9])])
 		self.hash[self.initial.cantor].set_true(self.initial)
 		self.goal_cantor = State(goal, 0, 1, goal, self.dis_map).cantor
+
+#		bool possible(int input_map[][COL], int std_map[][COL])/*可行性判断*/
+#	  {
+#	      int m = 0, n = 0;
+#	      int i, j, k, l;
+#	      int a[COL * COL], b[COL * COL];
+#	      for(i = 0; i < COL; i++)
+#	          for(j = 0; j < COL; j++){
+#	              a[i * COL + j] = input_map[i][j];
+#	              b[i * COL + j] = std_map[i][j];
+#	          }
+#	      for(k = 0; k < COL * COL; k++)
+#	          for(l = k + 1; l < COL * COL; l++){
+#	              if(a[l] < a[k] && a[l] != 0)
+#	                  m++;
+#	              if(b[l] < b[k] && b[l] != 0)
+#	                  n++;
+#	          }
+#	      return (n % 2) == (m % 2);
+#	  }
+
+	def if_possible(self, initial, goal):
+		tmp_sum_a = 0
+		tmp_sum_b = 0
+		tmp_a = initial
+		tmp_b = goal
+		tmp_fail = False
+		for i in range(8):
+			for j in range(i+1,8):
+				if tmp_a[i] > tmp_a[j] and tmp_a[j] != 0:
+					tmp_sum_a += 1
+		for i in range(8):
+			for j in range(i+1,8):
+				if tmp_b[i] > tmp_b[j] and tmp_b[j] != 0:
+					tmp_sum_b += 1
+		return (tmp_sum_a % 2) == (tmp_sum_b % 2)
+#			tmp_fail = True
+	#	return tmp_fail
+
+#1 2 3
+#8 0 4
+#7 6 5
 
 	def dis_map_init(self, goal):
 		for i in range(9):

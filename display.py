@@ -70,8 +70,11 @@ class ApplicationWindow(QWidget):
         QMainWindow.__init__(self)
         self.on = 0     # 看似是说明是否开始了，实际是用来保存当前步数 :)
         self.LayoutInit()   # 调用布局设置
-        self.initList = [0,1,2,3,4,5,6,7,8] # 初始状态表
-        self.goal = [0,1,2,3,4,5,6,7,8]     # 目标状态表
+        self.initList = [1,2,3,8,0,4,7,6,5] # 初始状态表
+        self.goal = [1,2,3,8,0,4,7,6,5]     # 目标状态表
+        #1 2 3
+        #8 0 4
+        #7 6 5
         self.Astar_h1 = Astar.Astar(self.initList, self.goal, 1)    # 生成h1的Astart类
         self.Astar_h2 = Astar.Astar(self.initList, self.goal, 2)    # 生成h2的Astart类
         self.G1 = nx.Graph()    #   创建h1的图
@@ -261,9 +264,9 @@ class ApplicationWindow(QWidget):
 
         # 终止结果输出
         if (self.Astar_h1.fail == True):
-            self.text_h1.append("Fail!")
+            self.text_h1.append("This puzzle is unsolvable!")
         if (self.Astar_h2.fail == True):
-            self.text_h2.append("Fail!")
+            self.text_h2.append("This puzzle is unsolvable!")
         if (self.Astar_h1.success == True):
             self.text_h1.append("Success!")
             path,n = self.Astar_h1.get_best_path()
