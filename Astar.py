@@ -115,18 +115,27 @@ class Astar:
 	def if_possible(self, initial, goal):
 		tmp_sum_a = 0
 		tmp_sum_b = 0
-		tmp_a = initial[:]
-		tmp_b = goal[:]
-		tmp_fail = False
-		for i in range(8):
-			for j in range(i+1,8):
+		tmp_a = initial
+		tmp_b = goal
+		tmp_possible = 0
+		tmp_count = 0
+		print(tmp_a)
+		print(tmp_b)
+		for i in range(9):
+			for j in range(i+1,9):
+				tmp_count += 1
+				print("step %d:"%(tmp_count))
+				print("a[i] = %d, a[j] = %d"%(tmp_a[i], tmp_a[j]))
+				print("b[i] = %d, b[j] = %d"%(tmp_b[i], tmp_b[j]))
 				if tmp_a[i] > tmp_a[j] and tmp_a[j] != 0:
 					tmp_sum_a += 1
-		for i in range(8):
-			for j in range(i+1,8):
 				if tmp_b[i] > tmp_b[j] and tmp_b[j] != 0:
 					tmp_sum_b += 1
-		return (tmp_sum_a % 2) == (tmp_sum_b % 2)
+				print("step %d: m = %d, n = %d"%(tmp_count, tmp_sum_a, tmp_sum_b))
+		if (tmp_sum_a % 2) == (tmp_sum_b % 2):
+			tmp_possible = True
+		return tmp_possible
+
 #			tmp_fail = True
 	#	return tmp_fail
 
