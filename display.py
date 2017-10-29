@@ -191,9 +191,14 @@ class ApplicationWindow(QWidget):
         self.text_h2.setText("")
         indexi = 1
         indexj = 1
-        tempList = [1,2,3,8,0,4,7,6,5]
+        tempList = self.goal[:]
+
+        # 五次乱步
         for k in range(5):
+            # 方向数组
             go = [1,2,3,4]
+
+            # 根据位置去除可以行走的方向
             if indexi == 0:
                 go.remove(1)
             if indexi == 2:
@@ -202,7 +207,11 @@ class ApplicationWindow(QWidget):
                 go.remove(3)
             if indexj == 2:
                 go.remove(4)
+
+            # 随机选取方向
             k = random.sample(go,1)[0]
+
+            # 按方向行走
             if k == 1:
                 old_index = indexi * 3 + indexj
                 indexi -= 1
@@ -231,6 +240,8 @@ class ApplicationWindow(QWidget):
                 temp = tempList[old_index]
                 tempList[old_index] = tempList[new_index]
                 tempList[new_index] = temp
+
+        # 刷新一切
         self.initList = tempList[:]
         for j in range(3):
             for i in range(3):
