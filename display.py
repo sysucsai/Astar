@@ -39,9 +39,12 @@ class MyCanvas(QWidget):
         }
 
     # 刷新（重绘）画布
-    def update_figure(self, G, root):
+    def update_figure(self, G, root, graphon):
         self.figure1 = plt.figure(self.canvas_no)  # 回到自己的显示区
         plt.clf()   # 清空显示区
+        if(graphon == 0):
+            self.canvas1.draw()
+            return
 
         # 一系列步骤创造networkx图的点的排列方式
         shellLay = [[root]]
@@ -71,6 +74,7 @@ class ApplicationWindow(QWidget):
         self.on = 0     # 看似是说明是否开始了，实际是用来保存当前步数 :)
         self.start_by_step = 0  # 单步执行启动
         self.step_over = 0 # 单步完成
+        self.graphon = 1
         self.initList = [1,2,3,8,0,4,7,6,5] # 初始状态表
         self.goal = [1,2,3,8,0,4,7,6,5]     # 目标状态表
         #1 2 3
@@ -84,8 +88,8 @@ class ApplicationWindow(QWidget):
                                                             #list_2_grid是一个将列表转换成矩阵自负串的函数
         self.G1.add_node(self.list_2_grid(self.initList))  # 将初始状态列表换成结点放入图中
         self.G2.add_node(self.list_2_grid(self.initList))  # 同上
-        self.show_h1(self.Astar_h1.initial)      # 文字初始化
-        self.show_h2(self.Astar_h2.initial)      # 文字初始化
+        self.show_h1()      # 文字初始化
+        self.show_h2()      # 文字初始化
 
         #   计时器，一段时间执行一步循环
         timer = QtCore.QTimer(self)
@@ -144,6 +148,10 @@ class ApplicationWindow(QWidget):
         self.OneStepButton = QPushButton("单步执行")
         self.OneStepButton.clicked.connect(self.startOneStep)
 
+        # 关闭/开启图像按钮
+        self.closeGraphButton = QPushButton("关闭图像")
+        self.closeGraphButton.clicked.connect(self.switchGraph)
+
         # 右下结果显示表
         self.resultEntry =[[QLabel(self) for i in range(3)] for j in range(4)]
         self.resultRow = [QHBoxLayout() for i in range(4)]
@@ -188,6 +196,7 @@ class ApplicationWindow(QWidget):
         self.column3.addWidget(self.randomButton)
         self.column3.addWidget(self.startButton)
         self.column3.addWidget(self.OneStepButton)
+        self.column3.addWidget(self.closeGraphButton)
         self.column3.addStretch(1)
         self.column3.addLayout(self.resultTable)
         self.column3.addStretch(1)
@@ -279,14 +288,26 @@ class ApplicationWindow(QWidget):
         self.G2 = nx.Graph()
         self.G1.add_node(self.list_2_grid(self.initList))  # 从v中添加结点，相当于顶点编号为1到8
         self.G2.add_node(self.list_2_grid(self.initList))  # 从v中添加结点，相当于顶点编号为1到8
-        self.show_h1(self.Astar_h1.initial)
-        self.show_h2(self.Astar_h2.initial)
+        self.show_h1()
+        self.show_h2()
 
     # 开始按钮事件
     def start(self):
         if self.on ==0:
             self.on = 1
         self.start_by_step = -1
+
+    def switchGraph(self):
+        if self.graphon == 1:
+            self.graphon = 0
+            self.canvas_h1.update_figure(self.G1,self.list_2_grid(self.initList),self.graphon)
+            self.canvas_h2.update_figure(self.G2,self.list_2_grid(self.initList),self.graphon)
+            self.closeGraphButton.setText("开启图像")
+        else:
+            self.graphon = 1
+            self.canvas_h1.update_figure(self.G1,self.list_2_grid(self.initList),self.graphon)
+            self.canvas_h2.update_figure(self.G2,self.list_2_grid(self.initList),self.graphon)
+            self.closeGraphButton.setText("关闭图像")
 
     def startOneStep(self):
         if self.start_by_step == -1:
@@ -308,7 +329,8 @@ class ApplicationWindow(QWidget):
 
         # 调用两个各自的刷新
         if(self.Astar_h1.fail != True and self.Astar_h1.success!= True):
-            self.show_h1(self.update_h1())
+            self.update_h1()
+            self.show_h1()
             if (self.Astar_h1.fail == True):
                 self.text_h1.append("This puzzle is unsolvable!")
             if (self.Astar_h1.success == True):
@@ -320,7 +342,8 @@ class ApplicationWindow(QWidget):
                 self.text_h1.append("最短路径长："+str(n))
                 self.resultEntry[3][1].setText(str(n))
         if(self.Astar_h2.fail != True and self.Astar_h2.success!= True):
-            self.show_h2(self.update_h2())
+            self.update_h2()
+            self.show_h2()
             if (self.Astar_h2.fail == True):
                 self.text_h2.append("This puzzle is unsolvable!")
             if (self.Astar_h2.success == True):
@@ -345,7 +368,7 @@ class ApplicationWindow(QWidget):
     # h1更新步骤
     def update_h1(self):
         # 调用类的刷新函数，返回新增结点列表和边列表
-        add_nodes, add_edges, now= self.Astar_h1.update()
+        add_nodes, add_edges= self.Astar_h1.update()
 
         # 加入新点
         for i in add_nodes:
@@ -357,39 +380,39 @@ class ApplicationWindow(QWidget):
             self.G1.add_edge(self.list_2_grid(self.cantor_decode(i)), self.list_2_grid(self.cantor_decode(j)))
 
         # 更新画布
-        self.canvas_h1.update_figure(self.G1,self.list_2_grid(self.initList))
+        self.canvas_h1.update_figure(self.G1,self.list_2_grid(self.initList),self.graphon)
 
-        return now
+        return
 
     # h2更新步骤
     def update_h2(self):
         # 同h1
-        add_nodes, add_edges, now= self.Astar_h2.update()
+        add_nodes, add_edges= self.Astar_h2.update()
         for i in add_nodes:
             tmp_list = self.cantor_decode(i)
             self.G2.add_node(self.list_2_grid(tmp_list))
         for (i, j) in add_edges:
             self.G2.add_edge(self.list_2_grid(self.cantor_decode(i)), self.list_2_grid(self.cantor_decode(j)))
-        self.canvas_h2.update_figure(self.G2,self.list_2_grid(self.initList))
-        return now
+        self.canvas_h2.update_figure(self.G2,self.list_2_grid(self.initList),self.graphon)
+        return
 
     #   显示h1的文字信息
-    def show_h1(self, now):
-        self.canvas_h1.update_figure(self.G1,self.list_2_grid(self.initList))
-        index = now
+    def show_h1(self):
+        self.canvas_h1.update_figure(self.G1,self.list_2_grid(self.initList),self.graphon)
+        index = self.Astar_h1.open[0][1]
         nodestr = self.list_2_grid(self.cantor_decode(index.cantor))
-        expandstr = str(self.Astar_h1.close_count + self.Astar_h1.get_open())
-        self.text_h1.append("%s%10s%10s%10s%10s%10s\n"%(nodestr,str(self.on),expandstr,str(self.Astar_h1.get_open()),str(index.h),str(index.f)))
+        expandstr = str(self.Astar_h1.close_count + self.Astar_h1.open_count)
+        self.text_h1.append("%s%10s%10s%10s%10s%10s\n"%(nodestr,str(self.on),expandstr,str(self.Astar_h1.open_count),str(index.h),str(index.f)))
         self.resultEntry[1][1].setText(str(self.on))
         self.resultEntry[2][1].setText(expandstr)
 
     #   显示h2的文字信息
-    def show_h2(self, now):
-        self.canvas_h2.update_figure(self.G2,self.list_2_grid(self.initList))
-        index = now
+    def show_h2(self):
+        self.canvas_h2.update_figure(self.G2,self.list_2_grid(self.initList),self.graphon)
+        index = self.Astar_h2.open[0][1]
         nodestr = self.list_2_grid(self.cantor_decode(index.cantor))
-        expandstr = str(self.Astar_h2.close_count + self.Astar_h2.get_open())
-        self.text_h2.append("%s%10s%10s%10s%10s%10s\n"%(nodestr,str(self.on),expandstr,str(self.Astar_h2.get_open()),str(index.h),str(index.f)))
+        expandstr = str(self.Astar_h2.close_count + self.Astar_h2.open_count)
+        self.text_h2.append("%s%10s%10s%10s%10s%10s\n"%(nodestr,str(self.on),expandstr,str(self.Astar_h2.open_count),str(index.h),str(index.f)))
         self.resultEntry[1][2].setText(str(self.on))
         self.resultEntry[2][2].setText(expandstr)
 
