@@ -1,4 +1,5 @@
 import math
+import heapq
 
 fac = tuple([math.factorial(i) for i in range(10)])
 
@@ -38,18 +39,17 @@ class State:
 			del valid[p]
 		return graph
 
-	def relax(self, father, open):
+	def relax(self, father, astar):
 		if self.father == father:
-			open[self.f].remove(self)
 			self.g = father.g+1
 			self.f = self.g + self.h
-			open[self.f].append(self)
+			astar.open_count += 1
+			heapq.heappush(astar.open, (self.f * 100 + self.g + astar.open_count * 0.000001, self))
 			for i in self.child:
 				i.relax(self)
 		else:
 			if self.father != self:
 				self.father.child.remove(self)
-				open[self.f].remove(self)
 			self.father = father
 			self.g = father.g + 1
 			self.f = self.g + self.h
@@ -83,6 +83,7 @@ class Astar:
 			self.fail = False
 		self.success = False
 		self.close_count = 0
+		self.open_count = 1
 
 		#dis_map[i][j]表示第i个位置上，如果是数字j数字，则距离initial[i]的距离，用于计算h2
 		self.dis_map = []
@@ -90,34 +91,11 @@ class Astar:
 			self.dis_map_init(goal)
 
 		self.initial = State(initial, 0, h_mode, goal, self.dis_map)
-		#self.open = [self.initial]
-		self.open_max = 50
-		self.open = [[] for i in range(self.open_max)]
-		self.open[self.initial.f].append(self.initial)
+		self.open = [(self.initial.f*100+self.initial.g+self.open_count*0.000001, self.initial)]
 		self.close = []
 		self.hash = tuple([flag() for i in range(fac[9])])
 		self.hash[self.initial.cantor].set_true(self.initial)
 		self.goal_cantor = State(goal, 0, 1, goal, self.dis_map).cantor
-
-#		bool possible(int input_map[][COL], int std_map[][COL])/*可行性判断*/
-#	  {
-#	      int m = 0, n = 0;
-#	      int i, j, k, l;
-#	      int a[COL * COL], b[COL * COL];
-#	      for(i = 0; i < COL; i++)
-#	          for(j = 0; j < COL; j++){
-#	              a[i * COL + j] = input_map[i][j];
-#	              b[i * COL + j] = std_map[i][j];
-#	          }
-#	      for(k = 0; k < COL * COL; k++)
-#	          for(l = k + 1; l < COL * COL; l++){
-#	              if(a[l] < a[k] && a[l] != 0)
-#	                  m++;
-#	              if(b[l] < b[k] && b[l] != 0)
-#	                  n++;
-#	          }
-#	      return (n % 2) == (m % 2);
-#	  }
 
 	def if_possible(self, initial, goal):
 		tmp_sum_a = 0
@@ -126,29 +104,22 @@ class Astar:
 		tmp_b = goal
 		tmp_possible = 0
 		tmp_count = 0
-		print(tmp_a)
-		print(tmp_b)
+		'''print(tmp_a)
+		print(tmp_b)'''
 		for i in range(9):
 			for j in range(i+1,9):
 				tmp_count += 1
-				print("step %d:"%(tmp_count))
+				'''print("step %d:"%(tmp_count))
 				print("a[i] = %d, a[j] = %d"%(tmp_a[i], tmp_a[j]))
-				print("b[i] = %d, b[j] = %d"%(tmp_b[i], tmp_b[j]))
+				print("b[i] = %d, b[j] = %d"%(tmp_b[i], tmp_b[j]))'''
 				if tmp_a[i] > tmp_a[j] and tmp_a[j] != 0:
 					tmp_sum_a += 1
 				if tmp_b[i] > tmp_b[j] and tmp_b[j] != 0:
 					tmp_sum_b += 1
-				print("step %d: m = %d, n = %d"%(tmp_count, tmp_sum_a, tmp_sum_b))
+				'''print("step %d: m = %d, n = %d"%(tmp_count, tmp_sum_a, tmp_sum_b))'''
 		if (tmp_sum_a % 2) == (tmp_sum_b % 2):
 			tmp_possible = True
 		return tmp_possible
-
-#			tmp_fail = True
-	#	return tmp_fail
-
-#1 2 3
-#8 0 4
-#7 6 5
 
 	def dis_map_init(self, goal):
 		for i in range(9):
@@ -165,9 +136,9 @@ class Astar:
 		'''执行一次迭代，返回新增的点和边'''
 		self.close_count += 1
 		#now = self.open.pop(0)
-		for i in range(self.open_max):
-			if len(self.open[i]) > 0:
-				now = self.open[i].pop(0)
+		while True:
+			record_fg, now = heapq.heappop(self.open)
+			if math.floor(record_fg) == now.f*100+now.g:
 				break
 		now_graph = now.get_graph()
 		for i in range(9):
@@ -190,25 +161,28 @@ class Astar:
 					#如果要添加的点已经拓展过
 					pre = self.hash[new.cantor].pointer
 					if pre.g > new.g:
-						pre.relax(now, self.open)
+						pre.relax(now, self)
+						self.open_count += 1
+						heapq.heappush(self.open, (new.f * 100 + new.g + self.open_count * 0.000001, new))
 						add_edges.append((now.cantor, new.cantor))
 				else:
 					#如果要添加的点未拓展过
 					self.hash[new.cantor].set_true(new)
-					new.relax(now, self.open)
+					new.relax(now, self)
 					add_nodes.append(new.cantor)
 					add_edges.append((now.cantor, new.cantor))
 					#self.open.append(new)
-					self.open[new.f].append(new)
+					self.open_count += 1
+					heapq.heappush(self.open, (new.f*100+new.g+self.open_count*0.000001, new))
 				if new.cantor == self.goal_cantor:
 					self.success = True
-					return add_nodes, add_edges, now
+					return add_nodes, add_edges
 				now_graph[p + move[i]] = now_graph[p]
 				now_graph[p] = 0
 		#如果Open表为空则搜索结束，标记fail为True
 		if len(self.open) == 0:
 			self.fail = True
-		return add_nodes, add_edges, now
+		return add_nodes, add_edges
 
 	def get_best_path(self):
 		'''获取最优路径和长度
@@ -224,9 +198,6 @@ class Astar:
 		best_path.insert(0, now.get_graph())
 		return best_path, len(best_path)-1
 
-	def get_open(self):
-		return sum([len(self.open[i]) for i in range(self.open_max)])
-
 
 if __name__ == "__main__":
 	goal = [0,5,2,
@@ -235,17 +206,11 @@ if __name__ == "__main__":
 	initial = [3,6,8,
 			   0,1,2,
 			   4,5,7]
-	'''initial = [0,1,2,
-			   3,4,5,
-			   6,7,8]
-	goal = [4,3,2,
-			1,0,5,
-			6,7,8]'''
 	h1 = Astar(initial, goal, 2)
 	while h1.fail == False and h1.success == False:
 		add_nodes, add_edges = h1.update()
-		#print(add_nodes)
-		#print(add_edges)
+		'''print(add_nodes)
+		print(add_edges)'''
 	if h1.success == True:
 		print("Find!")
 		best_path , best_path_step= h1.get_best_path()
