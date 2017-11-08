@@ -14,9 +14,9 @@ class State:
 		#使用放错位置的数字的个数作为h1*
 		#使用每个数字距离目标位置的距离作为h2*
 		if h_mode == 1:
-			self.h = sum([(1 if initial[i]!=goal[i] and initial[i]!=0 else 0) for i in range(9)])
+			self.h = math.floor(sum([(1 if initial[i]!=goal[i] else 0) for i in range(9)])/2)
 		else :
-			self.h = sum([dis_map[i][initial[i]] if initial[i] != 0 else 0 for i in range(9)])
+			self.h = math.floor(sum([dis_map[i][initial[i]] for i in range(9)])/2)
 
 		#计算f
 		self.f = self.g + self.h
@@ -141,44 +141,42 @@ class Astar:
 			if math.floor(record_fg) == now.f*100+now.h:
 				break
 		now_graph = now.get_graph()
-		for i in range(9):
-			if now_graph[i] == 0:
-				p = i
-				break
-		move = (-3, -1, 1, 3)
+		move = (1, 3)
 		add_nodes = []
 		add_edges = []
-		for i in range(4):
-			if 0<=p+move[i] and p+move[i] <=8:
-				if p%3 == 2 and move[i] == 1:
-					continue
-				if p%3 == 0 and move[i] == -1:
-					continue
-				now_graph[p] = now_graph[p+move[i]]
-				now_graph[p + move[i]] = 0
-				new = State(now_graph, now.g+1, self.h_mode, self.goal, self.dis_map)
-				if self.hash[new.cantor].is_true():
-					#如果要添加的点已经拓展过
-					pre = self.hash[new.cantor].pointer
-					if pre.g > new.g:
-						pre.relax(now, self)
-						self.open_count += 1
-						heapq.heappush(self.open, (pre.f * 100 + pre.h + self.open_count * 0.000001, pre))
+		for p in range(8):
+			for i in range(2):
+				if 0<=p+move[i] and p+move[i] <=8:
+					if p%3==2 and move[i]==1:
+						continue
+					if p>5 and move[i]==3:
+						continue
+					tmp = now_graph[p]
+					now_graph[p] = now_graph[p+move[i]]
+					now_graph[p + move[i]] = tmp
+					new = State(now_graph, now.g+1, self.h_mode, self.goal, self.dis_map)
+					if self.hash[new.cantor].is_true():
+						#如果要添加的点已经拓展过
+						pre = self.hash[new.cantor].pointer
+						if pre.g > new.g:
+							pre.relax(now, self)
+							self.open_count += 1
+							heapq.heappush(self.open, (pre.f * 100 + pre.h + self.open_count * 0.000001, pre))
+							add_edges.append((now.cantor, new.cantor))
+					else:
+						#如果要添加的点未拓展过
+						self.hash[new.cantor].set_true(new)
+						new.relax(now, self)
+						add_nodes.append(new.cantor)
 						add_edges.append((now.cantor, new.cantor))
-				else:
-					#如果要添加的点未拓展过
-					self.hash[new.cantor].set_true(new)
-					new.relax(now, self)
-					add_nodes.append(new.cantor)
-					add_edges.append((now.cantor, new.cantor))
-					#self.open.append(new)
-					self.open_count += 1
-					heapq.heappush(self.open, (new.f*100+new.h+self.open_count*0.000001, new))
-				if new.cantor == self.goal_cantor:
-					self.success = True
-					return add_nodes, add_edges
-				now_graph[p + move[i]] = now_graph[p]
-				now_graph[p] = 0
+						#self.open.append(new)
+						self.open_count += 1
+						heapq.heappush(self.open, (new.f*100+new.h+self.open_count*0.000001, new))
+					if new.cantor == self.goal_cantor:
+						self.success = True
+						return add_nodes, add_edges
+					now_graph[p + move[i]] = now_graph[p]
+					now_graph[p] = tmp
 		#如果Open表为空则搜索结束，标记fail为True
 		if len(self.open) == 0:
 			self.fail = True
@@ -206,7 +204,7 @@ if __name__ == "__main__":
 	initial = [3,6,8,
 			   0,1,2,
 			   4,5,7]
-	h1 = Astar(initial, goal, 1)
+	h1 = Astar(initial, goal, 2)
 	while h1.fail == False and h1.success == False:
 		add_nodes, add_edges = h1.update()
 		'''print(add_nodes)
