@@ -243,8 +243,8 @@ class ApplicationWindow(QWidget):
                 go.remove(2)
             if indexj == 2:
                 go.remove(-2)
-            if n!=0:
-                go.remove(-k)
+            #if n!=0:
+             #   go.remove(-k)
 
             # 随机选取方向
             k = random.sample(go,1)[0]
